@@ -9,5 +9,6 @@ class Products with ChangeNotifier {
 
   void addProduct(Product product) {
     _items.add(product);
+    notifyListeners();
   }
 }
