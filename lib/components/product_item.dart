@@ -46,7 +46,7 @@ class ProductItem extends StatelessWidget {
               ),
               onPressed: () {
                 cart.addItem(product);
-                print(cart.itemCount);
+                // print(cart.itemsCount);
               },
             ),
           ),
