@@ -9,7 +9,7 @@ class CartItemWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Cart cart = Provider.of<Cart>(context, listen: false);
+    //final Cart cart = Provider.of<Cart>(context, listen: false);
     return Dismissible(
       key: ValueKey(cartItem.id),
       background: Container(
@@ -27,6 +27,29 @@ class CartItemWidget extends StatelessWidget {
       onDismissed: (_) {
         Provider.of<Cart>(context, listen: false)
             .removeItem(cartItem.productId);
+      },
+      confirmDismiss: (_) {
+        return showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text("Tem certeza?"),
+            content: Text("Remover item do carrinho?"),
+            actions: <Widget>[
+              FlatButton(
+                onPressed: () {
+                  Navigator.of(context).pop(false);
+                },
+                child: Text("Não"),
+              ),
+              FlatButton(
+                onPressed: () {
+                  Navigator.of(context).pop(true);
+                },
+                child: Text("Sim"),
+              )
+            ],
+          ),
+        );
       },
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 4),
