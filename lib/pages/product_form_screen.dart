@@ -1,7 +1,7 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shop/providers/product.dart';
+import 'package:shop/providers/products.dart';
 
 class ProductFormScreen extends StatefulWidget {
   @override
@@ -19,22 +19,71 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   @override
   void initState() {
     super.initState();
-    _imageUrlFocusNode.addListener(_updateImageUrl);
+    _imageUrlFocusNode.addListener(_updateImage);
   }
 
-  void _updateImageUrl() {
-    setState(() {});
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_formData.isEmpty) {
+      final product = ModalRoute.of(context).settings.arguments as Product;
+      if (product != null) {
+        _formData['id'] = product.id;
+        _formData['title'] = product.title;
+        _formData['description'] = product.description;
+        _formData['price'] = product.price.toStringAsFixed(2);
+        _formData['imageUrl'] = product.imageUrl;
+        _imageUrlController.text = _formData['imageUrl'];
+      } else {
+        _formData['price'] = '';
+      }
+    }
+  }
+
+  void _updateImage() {
+    if (isValidImgUrl(_imageUrlController.text)) {
+      setState(() {});
+    }
   }
 
   void _saveForm() {
+    bool isValid = _form.currentState.validate();
+    if (!isValid) {
+      return;
+    }
+
     _form.currentState.save();
-    final newProduct = Product(
-      id: Random().nextDouble().toString(),
+    final product = Product(
+      id: _formData['id'],
       title: _formData['title'],
       price: _formData['price'],
       description: _formData['description'],
       imageUrl: _formData['imageUrl'],
     );
+
+    final products = Provider.of<Products>(context, listen: false);
+    if (_formData['id'] == null) {
+      products.addProduct(product);
+    } else {
+      products.updateProduct(product);
+    }
+    Navigator.of(context).pop();
+  }
+
+  bool isValidImgUrl(String url) {
+    bool startsWithHttp = url.toLowerCase().startsWith('http://');
+    bool startsWithHttps = url.toLowerCase().startsWith('https://');
+    bool endsWithPng = url.toLowerCase().endsWith('.png');
+    bool endsWithJpg = url.toLowerCase().endsWith('.jpg');
+    bool endsWithJpeg = url.toLowerCase().endsWith('.jpeg');
+    bool endsWithGif = url.toLowerCase().endsWith('.gif');
+
+    return (startsWithHttp ||
+        startsWithHttps && endsWithGif ||
+        endsWithJpeg ||
+        endsWithJpg ||
+        endsWithGif ||
+        endsWithPng);
   }
 
   @override
@@ -42,7 +91,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     super.dispose();
     _priceFocusNode.dispose();
     _descriptionFocusNode.dispose();
-    _imageUrlFocusNode.removeListener(_updateImageUrl);
+    _imageUrlFocusNode.removeListener(_updateImage);
     _imageUrlFocusNode.dispose();
   }
 
@@ -67,14 +116,26 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
           child: ListView(
             children: <Widget>[
               TextFormField(
+                initialValue: _formData['title'],
                 decoration: InputDecoration(labelText: "Título"),
                 textInputAction: TextInputAction.next,
                 onFieldSubmitted: (_) {
                   FocusScope.of(context).requestFocus(_priceFocusNode);
                 },
                 onSaved: (value) => _formData['title'] = value,
+                validator: (value) {
+                  bool empty = value.trim().isEmpty;
+                  bool invalid = value.trim().length < 2;
+
+                  if (empty || invalid) {
+                    return 'Informe título válido';
+                  } else {
+                    return null;
+                  }
+                },
               ),
               TextFormField(
+                initialValue: _formData['price'].toString(),
                 decoration: InputDecoration(labelText: "Preço"),
                 textInputAction: TextInputAction.next,
                 keyboardType: TextInputType.numberWithOptions(
@@ -85,14 +146,39 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                   FocusScope.of(context).requestFocus(_descriptionFocusNode);
                 },
                 onSaved: (value) => _formData['price'] = double.parse(value),
+                validator: (value) {
+                  bool empty = value.trim().isEmpty;
+                  var newPrice = double.tryParse(value);
+                  bool invalid = newPrice == null || newPrice <= 0;
+
+                  if (empty || invalid) {
+                    return 'Informe preço válido';
+                  } else {
+                    return null;
+                  }
+                },
               ),
               TextFormField(
+                initialValue: _formData['description'],
                 decoration: InputDecoration(labelText: "Descrição"),
                 textInputAction: TextInputAction.next,
                 maxLines: 3,
                 keyboardType: TextInputType.multiline,
                 focusNode: _descriptionFocusNode,
+                onFieldSubmitted: (_) {
+                  FocusScope.of(context).requestFocus(_imageUrlFocusNode);
+                },
                 onSaved: (value) => _formData['description'] = value,
+                validator: (value) {
+                  bool empty = value.trim().isEmpty;
+                  bool invalid = value.trim().length < 10;
+
+                  if (empty || invalid) {
+                    return 'Informe descrição válida(10 caracteres)';
+                  } else {
+                    return null;
+                  }
+                },
               ),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -108,6 +194,16 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                         _saveForm();
                       },
                       onSaved: (value) => _formData['imageUrl'] = value,
+                      validator: (value) {
+                        bool empty = value.trim().isEmpty;
+                        bool invalid = !isValidImgUrl(value);
+
+                        if (empty || invalid) {
+                          return 'Informe Url válida';
+                        } else {
+                          return null;
+                        }
+                      },
                     ),
                   ),
                   Container(
@@ -125,7 +221,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                         ? Text("Informe a URL")
                         : FittedBox(
                             child: Image.network(_imageUrlController.text),
-                            fit: BoxFit.cover,
+                            fit: BoxFit.fill,
                           ),
                   ),
                 ],
